@@ -1,0 +1,25 @@
+{
+	"imports": {
+		"$deno/": "https://deno.land/std@0.224.0/"
+	},
+	"tasks": {
+		"vet": "deno fmt --check && deno lint",
+		"verify": "deno check --config ./tsconfig.json --import-map ./deno.json ./src/index.js"
+	},
+	"fmt": {
+		"include": ["./src"],
+		"lineWidth": 90,
+		"useTabs": true,
+		"indentWidth": 4
+	},
+	"lint": {
+		"include": ["./src"],
+		"rules": {
+			"include": ["eqeqeq"],
+			"exclude": ["prefer-const"]
+		}
+	},
+	"test": {
+		"include": ["./src"]
+	}
+}
