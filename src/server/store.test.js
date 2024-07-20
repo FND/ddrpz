@@ -38,8 +38,9 @@ describe("store", () => {
 	});
 });
 
+/** @param {ArrayBuffer} buffer */
 // NB: intentionally independent from source implementation
-async function hash(buffer: ArrayBuffer) {
+async function hash(buffer) {
 	let hash = await globalThis.crypto.subtle.digest("SHA-256", buffer);
 	let hex = "";
 	for (let value of new Uint8Array(hash)) {
