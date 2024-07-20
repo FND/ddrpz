@@ -1,6 +1,7 @@
+import { blob } from "$valtown/blob";
+
 let CRYPTO = globalThis.crypto.subtle;
 
-let BUCKETS = new Map();
 let HASH_SIZE = 32; // ≙ SHA-256
 
 /**
@@ -9,12 +10,12 @@ let HASH_SIZE = 32; // ≙ SHA-256
  * @returns {Promise<void>}
  */
 export async function save(bucket, data) {
-	let combo = new Uint8Array(HASH_SIZE + data.length);
+	let buf = new Uint8Array(HASH_SIZE + data.length);
 	// prepend hash
-	let hash = await CRYPTO.digest("SHA-256", data.buffer);
-	combo.set(new Uint8Array(hash)); // XXX: spurious type conversion?
-	combo.set(data, HASH_SIZE);
-	BUCKETS.set(bucket, combo);
+	let hash = await CRYPTO.digest("SHA-256", data);
+	buf.set(new Uint8Array(hash));
+	buf.set(data, HASH_SIZE);
+	await blob.set(bucket, buf);
 }
 
 /**
@@ -22,13 +23,15 @@ export async function save(bucket, data) {
  * @returns {Promise<StoreData | null>}
  */
 export async function load(bucket) {
-	let combo = BUCKETS.get(bucket);
-	await Promise.resolve(null); // XXX: DEBUG
-	if (!combo) {
+	let res;
+	try {
+		res = await blob.get(bucket); // deno-lint-ignore no-empty
+	} catch (_err) {}
+	if (!res) {
 		return null;
 	}
 
-	let { buffer } = BUCKETS.get(bucket);
+	let buffer = await res.arrayBuffer();
 	let data = new Uint8Array(buffer, HASH_SIZE);
 	return {
 		data,

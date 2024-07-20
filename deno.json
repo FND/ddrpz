@@ -1,5 +1,7 @@
 {
 	"imports": {
+		"$valtown/": "https://esm.town/v/std/",
+		"$valtown/blob": "./src/server/blob.mock.js",
 		"$deno/": "https://deno.land/std@0.224.0/"
 	},
 	"tasks": {
