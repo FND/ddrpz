@@ -9,6 +9,6 @@ Contributing
 
     `deno fmt` can be used to automatically format code
 
-*   `deno task verify` performs static type checking
+*   `./bin/check` performs static type checking
 
 *   `deno test` runs the test suite (optionally with `--parallel` or `--watch`)

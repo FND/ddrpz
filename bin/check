@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+# poor man's globbing substitute
+
+set -eu
+
+root_dir=`dirname "$0"`
+root_dir=`realpath "$root_dir/.."`
+
+entry_point="./index.ts"
+
+quit() {
+    rm -rf "$entry_point"
+}
+trap quit EXIT
+
+abort() {
+	message="$@"
+
+	echo "$message" >&2
+	exit 1
+}
+
+cd "$root_dir"
+if [ -f "$entry_point" ]; then
+	abort "ERROR: \`$entry_point\` already exists"
+fi
+
+find ./src -name "*.js" | \
+		while read fn; do echo "import \"$fn\";" >> "$entry_point"; done
+deno task verify -- "$entry_point"

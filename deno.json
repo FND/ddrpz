@@ -4,7 +4,7 @@
 	},
 	"tasks": {
 		"vet": "deno lint && deno fmt --check",
-		"verify": "deno check --config ./tsconfig.json --import-map ./deno.json ./src/index.js"
+		"verify": "deno check --config ./tsconfig.json --import-map ./deno.json"
 	},
 	"fmt": {
 		"include": ["./src"],
