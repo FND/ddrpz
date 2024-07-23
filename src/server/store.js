@@ -7,7 +7,7 @@ let HASH_SIZE = 32; // ≙ SHA-256
 /**
  * @param {string} bucket
  * @param {Uint8Array} data
- * @returns {Promise<void>}
+ * @returns {Promise<string>}
  */
 export async function save(bucket, data) {
 	let combo = new Uint8Array(HASH_SIZE + data.length);
@@ -16,6 +16,7 @@ export async function save(bucket, data) {
 	combo.set(new Uint8Array(hash)); // XXX: spurious type conversion?
 	combo.set(data, HASH_SIZE);
 	await blob.set(bucket, combo);
+	return hex(new Uint8Array(hash));
 }
 
 /**
@@ -36,13 +37,18 @@ export async function load(bucket) {
 	return {
 		data,
 		get hash() { // TODO: memoize?
-			let hex = "";
-			for (let value of new Uint8Array(buffer, 0, HASH_SIZE)) {
-				hex += value.toString(16).padStart(2, "0");
-			}
-			return hex;
+			return hex(new Uint8Array(buffer, 0, HASH_SIZE));
 		},
 	};
+}
+
+/** @param {Uint8Array} data */
+function hex(data) {
+	let res = "";
+	for (let value of data) {
+		res += value.toString(16).padStart(2, "0");
+	}
+	return res;
 }
 
 /** @typedef {{ data: Uint8Array, hash: string }} StoreData */
