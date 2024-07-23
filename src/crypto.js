@@ -1,9 +1,11 @@
+import { SALT } from "./config.js";
+
 /* adapted from <https://prepitaph.org/articles/web-crypto-secrets/> */
 let CRYPTO = globalThis.crypto.subtle;
 let ALGO = "AES-GCM";
 let KEY = {
 	name: "PBKDF2",
-	salt: str2bytes("7a717688-cc08-4951-ac5b-73828c63eab3").buffer,
+	salt: str2bytes(SALT).buffer,
 	iterations: 100000,
 	hash: "SHA-256",
 };

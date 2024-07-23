@@ -13,7 +13,7 @@ export async function save(bucket, data) {
 	let combo = new Uint8Array(HASH_SIZE + data.length);
 	// prepend hash
 	let hash = await CRYPTO.digest("SHA-256", data.buffer);
-	combo.set(new Uint8Array(hash)); // XXX: spurious type conversion?
+	combo.set(new Uint8Array(hash));
 	combo.set(data, HASH_SIZE);
 	await blob.set(bucket, combo);
 	return hex(new Uint8Array(hash));
