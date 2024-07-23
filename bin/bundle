@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+# generates server bundle for Val Town deployment
+
+root_dir=`dirname "$0"`
+root_dir=`realpath "$root_dir/.."`
+
+esbuild --bundle --format=esm --packages=external "$root_dir/src/server/http.js" | \
+		sed 's#\$valtown/#https://esm.town/v/std/#'
