@@ -3,14 +3,37 @@ import { load, save } from "./store.js";
 let ENV = Deno.env;
 
 export let BUCKET_PREFIX = "DDRPZ_";
+export let CORS_PREFIX = BUCKET_PREFIX + "CORS_";
+
+let SUPPORTED_METHODS = "OPTIONS, HEAD, GET, PUT";
 
 /**
  * @param {Request} req
  * @returns {Response | Promise<Response>}
  */
 export default function (req) {
-	// check auth first to minimize unnecessary computation
-	let auth = req.headers.get("Authorization");
+	// CORS preflight support
+	let app = new URL(req.url).pathname.slice(1);
+	let { method, headers } = req;
+	let origin = headers.get("Origin");
+	if (method === "OPTIONS" && origin) {
+		let permitted = ENV.get(CORS_PREFIX + app);
+		if (permitted && origin === new URL(permitted).origin) {
+			return new Response(null, {
+				status: 204,
+				headers: {
+					"Access-Control-Allow-Origin": permitted,
+					"Access-Control-Allow-Methods": SUPPORTED_METHODS,
+					// deno-fmt-ignore
+					"Access-Control-Allow-Headers": "Authorization, If-Match, If-None-Match",
+				},
+			});
+		}
+		// ... otherwise continue regular processing below
+	}
+
+	// check auth early to minimize unnecessary computation
+	let auth = headers.get("Authorization");
 	if (!auth) {
 		return new Response("", { status: 404 }); // don't advertise availability here
 	}
@@ -18,7 +41,6 @@ export default function (req) {
 		return new Response("invalid authentication scheme", { status: 403 });
 	}
 
-	let app = new URL(req.url).pathname.slice(1);
 	let bucket = ENV.get(BUCKET_PREFIX + app);
 	if (!bucket) {
 		return new Response("no such bucket", { status: 404 });
@@ -27,12 +49,12 @@ export default function (req) {
 		return new Response("", { status: 403 });
 	}
 
-	switch (req.method) {
+	switch (method) {
 		case "OPTIONS":
 			return new Response(null, {
 				status: 204,
 				headers: {
-					Allow: "OPTIONS, HEAD, GET, PUT",
+					Allow: SUPPORTED_METHODS,
 				},
 			});
 		case "HEAD":
@@ -67,6 +89,7 @@ async function retrieve(req, bucket, omitBody) {
 		status: 200,
 		headers: {
 			ETag: etag,
+			"Access-Control-Expose-Headers": "ETag",
 		},
 	});
 }
@@ -89,12 +112,12 @@ async function store(req, bucket) {
 		if (!res || ifMatch !== `"${res.hash}"`) { // empty
 			return new Response(null, { status: 412 });
 		}
-		// continued below
+		// ... otherwise continue below
 	} else if (ifNoneMatch === "*") { // populate data (create only)
 		if (res) { // not empty
 			return new Response(null, { status: 412 });
 		}
-		// continued below
+		// ... otherwise continue below
 	} else if (ifNoneMatch) {
 		return new Response("invalid `If-None-Match` condition", {
 			status: 400,
@@ -111,6 +134,7 @@ async function store(req, bucket) {
 		status: 204,
 		headers: {
 			ETag: `"${hash}"`,
+			"Access-Control-Expose-Headers": "ETag",
 		},
 	});
 }
