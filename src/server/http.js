@@ -81,22 +81,22 @@ async function store(req, bucket) {
 	// FIXME: potential race condition, as concurrent requests might change
 	//        state in between `await` (i.e. load, save, save); locking required?
 	let res = await load(bucket);
-	let etag = req.headers.get("If-Match");
-	let createOnly = req.headers.get("If-None-Match");
-	if (etag) { // update existing data
-		if (createOnly) {
+	let ifMatch = req.headers.get("If-Match");
+	let ifNoneMatch = req.headers.get("If-None-Match");
+	if (ifMatch) { // update existing data
+		if (ifNoneMatch) {
 			return invalidConditions();
 		}
-		if (!res || etag !== `"${res.hash}"`) { // empty
+		if (!res || ifMatch !== `"${res.hash}"`) { // empty
 			return new Response(null, { status: 412 });
 		}
 		// continued below
-	} else if (createOnly === "*") { // populate data (create only)
+	} else if (ifNoneMatch === "*") { // populate data (create only)
 		if (res) { // not empty
 			return new Response(null, { status: 412 });
 		}
 		// continued below
-	} else if (createOnly) {
+	} else if (ifNoneMatch) {
 		return new Response("invalid `If-None-Match` condition", {
 			status: 400,
 		});
