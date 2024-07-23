@@ -1,11 +1,13 @@
+import * as cfg from "./config.js";
+
 /* adapted from <https://prepitaph.org/articles/web-crypto-secrets/> */
 let CRYPTO = globalThis.crypto.subtle;
 let ENC = new TextEncoder();
 let ALGO = "AES-GCM";
 let KEY = {
 	name: "PBKDF2",
-	salt: ENC.encode("7a717688-cc08-4951-ac5b-73828c63eab3").buffer,
-	iterations: 2 ** 20,
+	salt: ENC.encode(cfg.SALT).buffer,
+	iterations: cfg.ITER ?? 2 ** 20,
 	hash: "SHA-256",
 };
 let IV_SIZE = 16;
