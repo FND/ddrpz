@@ -18,9 +18,10 @@ describe("HTTP data retrieval", () => {
 	it("succeeds with valid credentials", async () => {
 		for (let method of ["HEAD", "GET"]) {
 			let context = `HTTP ${method}`;
-			let { bucket, headers } = establishBucket();
+			let { app, bucket, headers } = establishBucket();
+			let url = `${HOST}/${app}`;
 
-			let req = new Request(HOST, { method, headers });
+			let req = new Request(url, { method, headers });
 			let res = await requestHandler(req);
 
 			assertSame(res.status, 204, context);
@@ -29,7 +30,7 @@ describe("HTTP data retrieval", () => {
 
 			await save(bucket, SAMPLE_DATA);
 
-			req = new Request(HOST, { method, headers });
+			req = new Request(url, { method, headers });
 			res = await requestHandler(req);
 			let body = new Uint8Array(await res.arrayBuffer());
 
@@ -45,10 +46,10 @@ describe("HTTP data retrieval", () => {
 	});
 
 	it("supports caching", async () => {
-		let { bucket, headers } = establishBucket();
+		let { app, bucket, headers } = establishBucket();
 		await save(bucket, SAMPLE_DATA);
 
-		let req = new Request(HOST, {
+		let req = new Request(`${HOST}/${app}`, {
 			method: "GET",
 			headers: {
 				...headers,
@@ -67,9 +68,9 @@ describe("HTTP data submission", () => {
 	afterEach(resetEnvironment);
 
 	it("stores incoming data", async () => {
-		let { bucket, headers } = establishBucket();
+		let { app, bucket, headers } = establishBucket();
 
-		let req = new Request(HOST, {
+		let req = new Request(`${HOST}/${app}`, {
 			method: "PUT",
 			headers: {
 				...headers,
@@ -88,10 +89,11 @@ describe("HTTP data submission", () => {
 
 	it("enforces clobbering protection", async () => {
 		let method = "PUT";
-		let { bucket, headers } = establishBucket();
+		let { app, bucket, headers } = establishBucket();
+		let url = `${HOST}/${app}`;
 
 		// unconditional request to populate bucket
-		let req = new Request(HOST, {
+		let req = new Request(url, {
 			method,
 			headers,
 			body: SAMPLE_DATA,
@@ -103,7 +105,7 @@ describe("HTTP data submission", () => {
 		assertSame(data, null);
 
 		// properly populate bucket (create only)
-		req = new Request(HOST, {
+		req = new Request(url, {
 			method,
 			headers: {
 				...headers,
@@ -120,7 +122,7 @@ describe("HTTP data submission", () => {
 
 		// unconditional request to update existing data
 		let body = globalThis.crypto.getRandomValues(new Uint8Array(16));
-		req = new Request(HOST, {
+		req = new Request(url, {
 			method,
 			headers,
 			body,
@@ -132,7 +134,7 @@ describe("HTTP data submission", () => {
 		assertDeep(data?.data, SAMPLE_DATA);
 
 		// properly update existing data
-		req = new Request(HOST, {
+		req = new Request(url, {
 			method,
 			headers: {
 				...headers,
@@ -148,7 +150,7 @@ describe("HTTP data submission", () => {
 		assertDeep(data?.data, body);
 
 		// request to update bucket with stale ETag
-		req = new Request(HOST, {
+		req = new Request(url, {
 			method,
 			headers: {
 				...headers,
@@ -163,7 +165,7 @@ describe("HTTP data submission", () => {
 		assertDeep(data?.data, body);
 
 		// request to update bucket with nonsensical conditions
-		req = new Request(HOST, {
+		req = new Request(url, {
 			method,
 			headers: {
 				...headers,
@@ -179,8 +181,10 @@ describe("HTTP data submission", () => {
 		assertDeep(data?.data, body);
 
 		// request to populate bucket with nonsensical conditions
-		let { bucket: newBucket, headers: newHeaders } = establishBucket();
-		req = new Request(HOST, {
+		let newApp = "yourapp";
+		let { bucket: newBucket, headers: newHeaders } = establishBucket(newApp);
+		let newURL = `${HOST}/${newApp}`;
+		req = new Request(newURL, {
 			method,
 			headers: {
 				...newHeaders,
@@ -195,7 +199,7 @@ describe("HTTP data submission", () => {
 		assertSame(await load(newBucket), null);
 
 		// request to populate bucket with invalid condition
-		req = new Request(HOST, {
+		req = new Request(newURL, {
 			method,
 			headers: {
 				...newHeaders,
@@ -212,14 +216,15 @@ describe("HTTP data submission", () => {
 	it("rejects incoming data without valid bucket credentials", async () => {
 		let method = "PUT";
 		let body = globalThis.crypto.getRandomValues(new Uint8Array(32));
+		let url = `${HOST}/myapp`;
 
-		let req = new Request(HOST, { method, body });
+		let req = new Request(url, { method, body });
 		let res = await requestHandler(req);
 
 		assertSame(res.status, 404);
 
 		let { bucket, headers } = establishBucket();
-		req = new Request(HOST, {
+		req = new Request(url, {
 			method,
 			body,
 			headers: {
@@ -240,14 +245,15 @@ describe("HTTP basics", () => {
 	let supportedMethods = ["OPTIONS", "HEAD", "GET", "PUT"];
 
 	it("reports supported request methods only when authorized", async () => {
-		let req = new Request(HOST, { method: "OPTIONS" });
+		let url = `${HOST}/myapp`;
+		let req = new Request(url, { method: "OPTIONS" });
 		let res = await requestHandler(req);
 
 		assertSame(res.status, 404);
 		assertSame(res.headers.get("Allow"), null);
 
 		let { headers } = establishBucket();
-		req = new Request(HOST, {
+		req = new Request(url, {
 			method: "OPTIONS",
 			headers,
 		});
@@ -258,8 +264,9 @@ describe("HTTP basics", () => {
 	});
 
 	it("rejects requests without credentials", async () => {
+		let url = `${HOST}/myapp`;
 		for (let method of supportedMethods) {
-			let req = new Request(HOST, { method });
+			let req = new Request(url, { method });
 			let res = await requestHandler(req);
 
 			assertSame(res.status, 404, `HTTP ${method}`);
@@ -267,12 +274,13 @@ describe("HTTP basics", () => {
 	});
 
 	it("rejects requests with invalid credentials", async () => {
+		let url = `${HOST}/myapp`;
 		for (let method of supportedMethods) {
 			let context = `HTTP ${method}`;
-			let req = new Request(HOST, {
+			let req = new Request(url, {
 				method,
 				headers: {
-					Authorization: "Basic myapp:abc123",
+					Authorization: "Basic abc123",
 				},
 			});
 			let res = await requestHandler(req);
@@ -280,7 +288,7 @@ describe("HTTP basics", () => {
 			assertSame(res.status, 403, context);
 
 			let { headers } = establishBucket();
-			req = new Request(HOST, {
+			req = new Request(url, {
 				method,
 				headers: {
 					Authorization: headers.Authorization + "xxx",
@@ -294,8 +302,9 @@ describe("HTTP basics", () => {
 
 	it("rejects unsupported request methods", async () => {
 		let { headers } = establishBucket();
+		let url = `${HOST}/myapp`;
 		for (let method of ["POST", "DELETE"]) {
-			let req = new Request("https://example.org/", {
+			let req = new Request(url, {
 				method,
 				headers,
 			});
@@ -310,7 +319,7 @@ function establishBucket(app = "myapp", bucket = globalThis.crypto.randomUUID())
 	ENV.set(BUCKET_PREFIX + app, bucket);
 	/** @type {Record<string, string>} */
 	let headers = {
-		Authorization: `Bearer ${app}:${bucket}`,
+		Authorization: `Bearer ${bucket}`,
 	};
 	return { app, bucket, headers };
 }

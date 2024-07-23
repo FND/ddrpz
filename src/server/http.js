@@ -18,13 +18,12 @@ export default function (req) {
 		return new Response("invalid authentication scheme", { status: 403 });
 	}
 
-	// bearer token is `$app:$bucket`
-	let i = auth.indexOf(":");
-	let bucket = ENV.get(BUCKET_PREFIX + auth.slice(7, i)); // NB: strips auth scheme
+	let app = new URL(req.url).pathname.slice(1);
+	let bucket = ENV.get(BUCKET_PREFIX + app);
 	if (!bucket) {
 		return new Response("no such bucket", { status: 404 });
 	}
-	if (auth.slice(i + 1) !== bucket) {
+	if (auth.slice(7) !== bucket) { // NB: strips auth scheme
 		return new Response("", { status: 403 });
 	}
 
