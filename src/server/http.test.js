@@ -1,4 +1,4 @@
-import requestHandler, { BUCKET_PREFIX } from "./http.js";
+import requestHandler, { BUCKET_PREFIX, CORS_PREFIX } from "./http.js";
 import { load, save } from "./store.js";
 import { SAMPLE_DATA, SAMPLE_HASH } from "./test_util.js";
 import { afterEach, beforeEach, describe, it } from "$deno/testing/bdd.ts";
@@ -42,21 +42,36 @@ describe("HTTP data retrieval", () => {
 				assertDeep(body, SAMPLE_DATA);
 			}
 			assertSame(res.headers.get("ETag"), `"${SAMPLE_HASH}"`, context);
+			assertSame(res.headers.get("Access-Control-Expose-Headers"), "ETag");
 		}
 	});
 
 	it("supports caching", async () => {
 		let { app, bucket, headers } = establishBucket();
+		let url = `${HOST}/${app}`;
 		await save(bucket, SAMPLE_DATA);
 
-		let req = new Request(`${HOST}/${app}`, {
+		let req = new Request(url, {
+			method: "GET",
+			headers,
+		});
+		let res = await requestHandler(req);
+		let body = new Uint8Array(await res.arrayBuffer());
+
+		assertSame(res.status, 200);
+		assertSame(res.headers.get("ETag"), `"${SAMPLE_HASH}"`);
+		assertSame(res.headers.get("Access-Control-Expose-Headers"), "ETag");
+		assertSame(body.length, 25);
+		assertDeep(body, SAMPLE_DATA);
+
+		req = new Request(url, {
 			method: "GET",
 			headers: {
 				...headers,
 				"If-None-Match": `"${SAMPLE_HASH}"`,
 			},
 		});
-		let res = await requestHandler(req);
+		res = await requestHandler(req);
 
 		assertSame(res.status, 304);
 		assertSame(res.body, null);
@@ -83,6 +98,7 @@ describe("HTTP data submission", () => {
 
 		assertSame(res.status, 204);
 		assertSame(res.headers.get("ETag"), `"${SAMPLE_HASH}"`);
+		assertSame(res.headers.get("Access-Control-Expose-Headers"), "ETag");
 		assertSame(data?.hash, SAMPLE_HASH);
 		assertDeep(data?.data, SAMPLE_DATA);
 	});
@@ -118,6 +134,7 @@ describe("HTTP data submission", () => {
 
 		assertSame(res.status, 204);
 		assertSame(res.headers.get("ETag"), `"${SAMPLE_HASH}"`);
+		assertSame(res.headers.get("Access-Control-Expose-Headers"), "ETag");
 		assertDeep(data?.data, SAMPLE_DATA);
 
 		// unconditional request to update existing data
@@ -147,6 +164,7 @@ describe("HTTP data submission", () => {
 
 		assertSame(res.status, 204);
 		assertSame(res.headers.get("ETag"), `"${data?.hash}"`);
+		assertSame(res.headers.get("Access-Control-Expose-Headers"), "ETag");
 		assertDeep(data?.data, body);
 
 		// request to update bucket with stale ETag
@@ -243,6 +261,60 @@ describe("HTTP basics", () => {
 	afterEach(resetEnvironment);
 
 	let supportedMethods = ["OPTIONS", "HEAD", "GET", "PUT"];
+
+	it("supports CORS", async () => {
+		let origin = "https://static.example.org";
+		let options = {
+			method: "OPTIONS",
+			headers: {
+				Origin: origin,
+				"Access-Control-Request-Method": "GET",
+				"Access-Control-Request-Headers": "Authorization",
+			},
+		};
+		let url = `${HOST}/myapp`;
+
+		let req = new Request(url, options);
+		let res = await requestHandler(req);
+
+		assertSame(res.status, 404);
+		assertSame(res.headers.get("Access-Control-Allow-Origin"), null);
+		assertSame(res.headers.get("Access-Control-Allow-Methods"), null);
+		assertSame(res.headers.get("Access-Control-Allow-Headers"), null);
+
+		ENV.set(CORS_PREFIX + "myapp", origin);
+		req = new Request(url, options);
+		res = await requestHandler(req);
+
+		assertSame(res.status, 204);
+		assertSame(res.headers.get("Access-Control-Allow-Origin"), origin);
+		// deno-fmt-ignore
+		assertSame(res.headers.get("Access-Control-Allow-Methods"), supportedMethods.join(", "));
+		// deno-fmt-ignore
+		assertSame(res.headers.get("Access-Control-Allow-Headers"), "Authorization, If-Match, If-None-Match");
+
+		req = new Request(url, {
+			...options,
+			headers: {
+				...options.headers,
+				Origin: "https://example.com",
+			},
+		});
+		res = await requestHandler(req);
+
+		assertSame(res.status, 404);
+		assertSame(res.headers.get("Access-Control-Allow-Origin"), null);
+		assertSame(res.headers.get("Access-Control-Allow-Methods"), null);
+		assertSame(res.headers.get("Access-Control-Allow-Headers"), null);
+
+		req = new Request(`${HOST}/yourapp`, options);
+		res = await requestHandler(req);
+
+		assertSame(res.status, 404);
+		assertSame(res.headers.get("Access-Control-Allow-Origin"), null);
+		assertSame(res.headers.get("Access-Control-Allow-Methods"), null);
+		assertSame(res.headers.get("Access-Control-Allow-Headers"), null);
+	});
 
 	it("reports supported request methods only when authorized", async () => {
 		let url = `${HOST}/myapp`;
