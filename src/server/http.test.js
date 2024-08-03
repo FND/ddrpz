@@ -101,24 +101,37 @@ describe("HTTP data submission", () => {
 	afterEach(resetEnvironment);
 
 	it("stores incoming data", async () => {
-		let { app, bucket, headers } = establishBucket();
+		for (let cors of [false, true]) {
+			let context = `HTTP PUT (${cors ? "with" : "without"} CORS)`;
+			let { app, bucket, headers } = establishBucket();
+			if (cors) {
+				ENV.set(CORS_PREFIX + app, ORIGIN);
+			} else {
+				ENV.delete(CORS_PREFIX + app);
+			}
 
-		let req = new Request(`${HOST}/${app}`, {
-			method: "PUT",
-			headers: {
-				...headers,
-				"If-None-Match": "*",
-			},
-			body: SAMPLE_DATA,
-		});
-		let res = await requestHandler(req);
-		let data = await load(bucket);
+			let req = new Request(`${HOST}/${app}`, {
+				method: "PUT",
+				headers: {
+					...headers,
+					"If-None-Match": "*",
+				},
+				body: SAMPLE_DATA,
+			});
+			let res = await requestHandler(req);
+			let data = await load(bucket);
 
-		assertSame(res.status, 204);
-		assertSame(res.headers.get("ETag"), `"${SAMPLE_HASH}"`);
-		assertSame(res.headers.get("Access-Control-Expose-Headers"), "ETag");
-		assertSame(data?.hash, SAMPLE_HASH);
-		assertDeep(data?.data, SAMPLE_DATA);
+			assertSame(res.status, 204, context);
+			assertSame(res.headers.get("ETag"), `"${SAMPLE_HASH}"`, context);
+			assertSame(res.headers.get("Access-Control-Expose-Headers"), "ETag", context);
+			assertSame(
+				res.headers.get("Access-Control-Allow-Origin"),
+				cors ? ORIGIN : null,
+				context,
+			);
+			assertSame(data?.hash, SAMPLE_HASH, context);
+			assertDeep(data?.data, SAMPLE_DATA, context);
+		}
 	});
 
 	it("enforces clobbering protection", async () => {

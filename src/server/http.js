@@ -48,6 +48,8 @@ export default function (req) {
 		return new Response("", { status: 403 });
 	}
 
+	/** @type {Record<string, string>} */
+	let corsHeaders = permitted ? { "Access-Control-Allow-Origin": permitted } : {};
 	switch (method) {
 		case "OPTIONS":
 			return new Response(null, {
@@ -57,11 +59,11 @@ export default function (req) {
 				},
 			});
 		case "HEAD":
-			return retrieve(req, bucket, permitted, true);
+			return retrieve(req, bucket, corsHeaders, true);
 		case "GET":
-			return retrieve(req, bucket, permitted);
+			return retrieve(req, bucket, corsHeaders);
 		case "PUT":
-			return store(req, bucket);
+			return store(req, bucket, corsHeaders);
 		default:
 			return new Response("", { status: 405 });
 	}
@@ -70,17 +72,11 @@ export default function (req) {
 /**
  * @param {Request} req
  * @param {string} bucket
- * @param {string} [corsOrigin]
+ * @param {Record<string, string>} [headers]
  * @param {boolean} [omitBody]
  * @returns {Promise<Response>}
  */
-async function retrieve(req, bucket, corsOrigin, omitBody) {
-	/** @type {Record<string, string>} */
-	let headers = {};
-	if (corsOrigin) {
-		headers["Access-Control-Allow-Origin"] = corsOrigin;
-	}
-
+async function retrieve(req, bucket, headers = {}, omitBody) {
 	let res = await load(bucket);
 	if (!res) {
 		return new Response(null, { status: 204, headers });
@@ -104,9 +100,10 @@ async function retrieve(req, bucket, corsOrigin, omitBody) {
 /**
  * @param {Request} req
  * @param {string} bucket
+ * @param {Record<string, string>} [headers]
  * @returns {Promise<Response>}
  */
-async function store(req, bucket) {
+async function store(req, bucket, headers) {
 	// FIXME: potential race condition, as concurrent requests might change
 	//        state in between `await` (i.e. load, save, save); locking required?
 	let res = await load(bucket);
@@ -114,24 +111,26 @@ async function store(req, bucket) {
 	let ifNoneMatch = req.headers.get("If-None-Match");
 	if (ifMatch) { // update existing data
 		if (ifNoneMatch) {
-			return invalidConditions();
+			return invalidConditions(headers);
 		}
 		if (!res || ifMatch !== `"${res.hash}"`) { // empty
-			return new Response(null, { status: 412 });
+			return new Response(null, { status: 412, headers });
 		}
 		// ... otherwise continue below
 	} else if (ifNoneMatch === "*") { // populate data (create only)
 		if (res) { // not empty
-			return new Response(null, { status: 412 });
+			return new Response(null, { status: 412, headers });
 		}
 		// ... otherwise continue below
 	} else if (ifNoneMatch) {
 		return new Response("invalid `If-None-Match` condition", {
 			status: 400,
+			headers,
 		});
 	} else {
 		return new Response("write operations must use conditional requests", {
 			status: 428,
+			headers,
 		});
 	}
 
@@ -140,14 +139,17 @@ async function store(req, bucket) {
 	return new Response(null, {
 		status: 204,
 		headers: {
+			...headers,
 			ETag: `"${hash}"`,
 			"Access-Control-Expose-Headers": "ETag",
 		},
 	});
 }
 
-function invalidConditions() {
+/** @param {Record<string, string>} [headers] */
+function invalidConditions(headers) {
 	return new Response("must not combine `If-None-Match` and `If-Match` conditions", {
 		status: 400,
+		headers,
 	});
 }
