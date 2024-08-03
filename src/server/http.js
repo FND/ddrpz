@@ -15,21 +15,20 @@ export default function (req) {
 	// CORS preflight support
 	let app = new URL(req.url).pathname.slice(1);
 	let { method, headers } = req;
-	let origin = headers.get("Origin");
-	if (method === "OPTIONS" && origin) {
-		let permitted = ENV.get(CORS_PREFIX + app);
-		if (permitted && origin === new URL(permitted).origin) {
-			return new Response(null, {
-				status: 204,
-				headers: {
-					"Access-Control-Allow-Origin": permitted,
-					"Access-Control-Allow-Methods": SUPPORTED_METHODS,
-					// deno-fmt-ignore
-					"Access-Control-Allow-Headers": "Authorization, If-Match, If-None-Match",
-				},
-			});
-		}
-		// ... otherwise continue regular processing below
+	let permitted = ENV.get(CORS_PREFIX + app);
+	permitted &&= new URL(permitted).origin;
+	if (
+		method === "OPTIONS" && headers.get("Access-Control-Request-Method") &&
+		permitted && headers.get("Origin") === permitted
+	) {
+		return new Response(null, {
+			status: 204,
+			headers: {
+				"Access-Control-Allow-Origin": permitted,
+				"Access-Control-Allow-Methods": SUPPORTED_METHODS,
+				"Access-Control-Allow-Headers": "Authorization, If-Match, If-None-Match",
+			},
+		});
 	}
 
 	// check auth early to minimize unnecessary computation
@@ -58,9 +57,9 @@ export default function (req) {
 				},
 			});
 		case "HEAD":
-			return retrieve(req, bucket, true);
+			return retrieve(req, bucket, permitted, true);
 		case "GET":
-			return retrieve(req, bucket);
+			return retrieve(req, bucket, permitted);
 		case "PUT":
 			return store(req, bucket);
 		default:
@@ -71,23 +70,31 @@ export default function (req) {
 /**
  * @param {Request} req
  * @param {string} bucket
+ * @param {string} [corsOrigin]
  * @param {boolean} [omitBody]
  * @returns {Promise<Response>}
  */
-async function retrieve(req, bucket, omitBody) {
+async function retrieve(req, bucket, corsOrigin, omitBody) {
+	/** @type {Record<string, string>} */
+	let headers = {};
+	if (corsOrigin) {
+		headers["Access-Control-Allow-Origin"] = corsOrigin;
+	}
+
 	let res = await load(bucket);
 	if (!res) {
-		return new Response(null, { status: 204 });
+		return new Response(null, { status: 204, headers });
 	}
 
 	let etag = `"${res.hash}"`;
 	if (req.headers.get("If-None-Match") === etag) {
-		return new Response(null, { status: 304 });
+		return new Response(null, { status: 304, headers });
 	}
 
 	return new Response(omitBody ? null : res.data, {
 		status: 200,
 		headers: {
+			...headers,
 			ETag: etag,
 			"Access-Control-Expose-Headers": "ETag",
 		},

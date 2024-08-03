@@ -10,6 +10,7 @@ import {
 let ENV = Deno.env;
 
 let HOST = "https://example.org";
+let ORIGIN = "https://myapp.example.com";
 
 describe("HTTP data retrieval", () => {
 	beforeEach(verifyEnvironment);
@@ -17,32 +18,49 @@ describe("HTTP data retrieval", () => {
 
 	it("succeeds with valid credentials", async () => {
 		for (let method of ["HEAD", "GET"]) {
-			let context = `HTTP ${method}`;
-			let { app, bucket, headers } = establishBucket();
-			let url = `${HOST}/${app}`;
+			for (let cors of [false, true]) {
+				let context = `HTTP ${method} (${cors ? "with" : "without"} CORS)`;
+				let { app, bucket, headers } = establishBucket();
+				let url = `${HOST}/${app}`;
+				if (cors) {
+					ENV.set(CORS_PREFIX + app, ORIGIN);
+				} else {
+					ENV.delete(CORS_PREFIX + app);
+				}
 
-			let req = new Request(url, { method, headers });
-			let res = await requestHandler(req);
+				let req = new Request(url, { method, headers });
+				let res = await requestHandler(req);
 
-			assertSame(res.status, 204, context);
-			assertSame(res.body, null, context);
-			assertSame(res.headers.get("ETag"), null, context);
+				assertSame(res.status, 204, context);
+				assertSame(res.body, null, context);
+				assertSame(res.headers.get("ETag"), null, context);
+				assertSame(
+					res.headers.get("Access-Control-Allow-Origin"),
+					cors ? ORIGIN : null,
+					context,
+				);
 
-			await save(bucket, SAMPLE_DATA);
+				await save(bucket, SAMPLE_DATA);
 
-			req = new Request(url, { method, headers });
-			res = await requestHandler(req);
-			let body = new Uint8Array(await res.arrayBuffer());
+				req = new Request(url, { method, headers });
+				res = await requestHandler(req);
+				let body = new Uint8Array(await res.arrayBuffer());
 
-			assertSame(res.status, 200, context);
-			if (method === "HEAD") {
-				assertSame(body.length, 0);
-			} else {
-				assertSame(body.length, 25);
-				assertDeep(body, SAMPLE_DATA);
+				assertSame(res.status, 200, context);
+				if (method === "HEAD") {
+					assertSame(body.length, 0);
+				} else {
+					assertSame(body.length, 25);
+					assertDeep(body, SAMPLE_DATA);
+				}
+				assertSame(res.headers.get("ETag"), `"${SAMPLE_HASH}"`, context);
+				assertSame(
+					res.headers.get("Access-Control-Allow-Origin"),
+					cors ? ORIGIN : null,
+					context,
+				);
+				assertSame(res.headers.get("Access-Control-Expose-Headers"), "ETag");
 			}
-			assertSame(res.headers.get("ETag"), `"${SAMPLE_HASH}"`, context);
-			assertSame(res.headers.get("Access-Control-Expose-Headers"), "ETag");
 		}
 	});
 
@@ -262,7 +280,7 @@ describe("HTTP basics", () => {
 
 	let supportedMethods = ["OPTIONS", "HEAD", "GET", "PUT"];
 
-	it("supports CORS", async () => {
+	it("supports CORS preflight", async () => {
 		let origin = "https://static.example.org";
 		let options = {
 			method: "OPTIONS",
