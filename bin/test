@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+set -eu
+
+root_dir=`dirname "$0"`
+root_dir=`realpath "$root_dir/.."`
+
+server_options=(--allow-env)
+
+# special-casing watch mode
+watch="false"
+options=(--deny-net=example.org) # workaround: empty array is considered unbound variable
+for arg in "$@"; do
+	case "$arg" in
+		-w | --watch)
+			watch="true"
+			;;
+		*)
+			options+=("$arg")
+			;;
+	esac
+	shift
+done
+
+cd "$root_dir"
+if [ "$watch" = "true" ]; then
+	# XXX: crude; combining all options to avoid backgrounding subprocesses
+	deno test "${options[@]}" --watch "${server_options[@]}"
+else
+	deno test "${options[@]}" "${server_options[@]}" ./src/server
+	deno test "${options[@]}" ./src/client
+fi

@@ -17,4 +17,5 @@ Contributing
 
 *   `./bin/check` performs static type checking
 
-*   `deno test` runs the test suite (optionally with `--parallel` or `--watch`)
+*   `./bin/test` runs the test suites for both server and client (optionally
+    with `--parallel` or `--watch`)

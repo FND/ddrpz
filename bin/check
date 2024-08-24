@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
 
-# poor man's globbing substitute
+# type checking with support for directory-based configuration inheritance
 
 set -eu
 
 root_dir=`dirname "$0"`
 root_dir=`realpath "$root_dir/.."`
 
-entry_point="./index.ts"
+tsconfig_base="./tsconfig.json"
+tsconfig_actual="./tsconfig.tmp.json"
+projects=(./src/server ./src/client)
 
 quit() {
-    rm -rf "$entry_point"
+    rm "$tsconfig_actual" || true
 }
 trap quit EXIT
 
@@ -22,10 +24,31 @@ abort() {
 }
 
 cd "$root_dir"
-if [ -f "$entry_point" ]; then
-	abort "ERROR: \`$entry_point\` already exists"
-fi
+# check each subproject seperately to account for varying configuration
+for dir in "${projects[@]}"; do
+	custom="$dir/tsconfig.json"
+	if [ ! -f "$custom" ]; then
+		cp "$tsconfig_base" "$tsconfig_actual"
+	else # merge configuration files
+		deno run --import-map ./deno.json - > "$tsconfig_actual" <<-EOS
+import defaults from "$tsconfig_base" with { "type": "json" };
+import custom from "$custom" with { "type": "json" };
+import { dirname, join, normalize } from "\$deno/path/mod.ts";
 
-find ./src -name "*.js" | \
-		while read fn; do echo "import \"$fn\";" >> "$entry_point"; done
-deno task verify -- "$entry_point"
+// ensure we adhere to established conventions
+if(normalize("$tsconfig_base") !== join(dirname("$custom"), custom.extends)) {
+	console.error("ERROR: missing or invalid \`extends\` in \`$custom\`; " +
+			"expected reference to \`" + join("$root_dir", "$tsconfig_base") + "\`");
+	Deno.exit(1);
+}
+
+console.log(JSON.stringify({
+	compilerOptions: {
+		...defaults.compilerOptions,
+		...custom.compilerOptions
+	}
+}, null, 4));
+		EOS
+	fi
+	deno task verify -- "$dir"
+done

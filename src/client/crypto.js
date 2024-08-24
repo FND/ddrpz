@@ -1,4 +1,4 @@
-import * as cfg from "./config.js";
+import * as cfg from "../config.js";
 
 /* adapted from <https://prepitaph.org/articles/web-crypto-secrets/> */
 let CRYPTO = globalThis.crypto.subtle;
