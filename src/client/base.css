@@ -1,0 +1,50 @@
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+:root {
+	color-scheme: light;
+	--color-fg: #000;
+	--color-bg: #FFF;
+
+	@media (prefers-color-scheme: dark) {
+		color-scheme: dark;
+		--color-fg: #FFF;
+		--color-bg: #333;
+	}
+
+	--h-size: 60ch;
+
+	/* modular scale-ish; cf. https://www.modularscale.com/?1.5 */
+	--spacing: 0.5rem;
+	--spacing-sm1: calc(var(--spacing) * 0.667);
+	--spacing-sm2: calc(var(--spacing) * 0.444);
+}
+
+html {
+	color: var(--color-fg);
+	background-color: var(--color-bg);
+}
+
+body {
+	max-width: calc(var(--h-size) + 2 * var(--spacing));
+	margin: 1rem auto;
+	padding-inline: var(--spacing);
+	font-family: system-ui, sans-serif;
+	line-height: 1.5;
+}
+
+input,
+button {
+	font: inherit;
+}
+
+.stack > * {
+	margin-block: 0;
+
+	& + * {
+		margin-block-start: var(--spacing);
+	}
+}

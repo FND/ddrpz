@@ -10,6 +10,7 @@
 	},
 	"fmt": {
 		"include": ["./src"],
+		"exclude": ["./src/**/*.html", "./src/**/*.css"],
 		"lineWidth": 90,
 		"useTabs": true,
 		"indentWidth": 4

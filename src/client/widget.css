@@ -1,0 +1,35 @@
+sample-widget {
+	display: block;
+	position: relative;
+	min-height: 20rem; /* XXX: magic number */
+
+	&:has(ddrpz-config:not([hidden])) > :not(ddrpz-config) {
+		visibility: hidden; /* XXX: hacky workaround */
+	}
+
+	ddrpz-config {
+		--color-shadow: #0003;
+		--shadow-size: 0.5rem;
+		@media (prefers-color-scheme: dark) {
+			--color-shadow: #FFF3;
+		}
+
+		position: absolute;
+		top: 0;
+		max-height: 100%;
+		overflow: auto;
+		z-index: 1;
+
+		/* scroll shadow; cf. https://prepitaph.org/snippets/scroll-shadows/ */
+		background: linear-gradient(var(--color-bg) 30%, transparent),
+				linear-gradient(transparent, var(--color-bg) 70%) 0 100%,
+				radial-gradient(farthest-side at 50% 0, var(--color-shadow), transparent),
+				radial-gradient(farthest-side at 50% 100%, var(--color-shadow), transparent) 0 100%;
+		background-size: 100% calc(4 * var(--shadow-size)),
+				100% calc(4 * var(--shadow-size)),
+				100% calc(2 * var(--shadow-size)),
+				100% calc(2 * var(--shadow-size));
+		background-attachment: local, local, scroll, scroll;
+		background-repeat: no-repeat;
+	}
+}

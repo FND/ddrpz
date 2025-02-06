@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<title>Sample Client</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="./base.css">
+	<link rel="stylesheet" href="./forms.css">
+</head>
+
+<body class="stack">
+	<h1>Sample Client</h1>
+	<sample-widget store="foo"></sample-widget>
+	<sample-widget store="bar"></sample-widget>
+
+	<script type="module">
+import { Widget } from "./widget.js";
+import { ConfigDialog } from "./config_dialog.js";
+
+Widget.register();
+ConfigDialog.register();
+	</script>
+</body>
+
+</html>

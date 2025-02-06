@@ -1,0 +1,52 @@
+form.ddrpz {
+	p {
+		text-wrap: pretty;
+	}
+
+	label {
+		&,
+		b {
+			display: block;
+		}
+	}
+
+	button {
+		width: 100%;
+	}
+
+	input:not([type=checkbox]),
+	textarea {
+		width: 100%;
+		padding-inline: var(--spacing-sm1);
+	}
+
+	textarea:not([rows]) {
+		min-height: 10em;
+	}
+
+	label:not(:has(input[type=checkbox])) b {
+		font-size: smaller;
+		font-variant: small-caps;
+	}
+
+	label:has(input[type=checkbox]) {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		gap: var(--spacing-sm2) var(--spacing);
+		align-items: center;
+		justify-content: flex-end;
+
+		b {
+			font-weight: normal;
+		}
+
+		input { /* cf. https://design-system.service.gov.uk/components/checkboxes/ */
+			--_size: 1.5rem; /* XXX: magic number */
+
+			width: var(--_size);
+			height: var(--_size);
+			margin: 0;
+			cursor: pointer;
+		}
+	}
+}
