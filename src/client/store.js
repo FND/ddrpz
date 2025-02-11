@@ -4,11 +4,9 @@ let FIELDS = /** @type {const} */ (["url", "token", "secret"]);
 let CRYPTO = globalThis.crypto;
 
 export class Store {
-	timeout = 1000;
 	/** @type {string | null} */
 	_etag = null;
-	/** @type {Worker | null} */
-	__worker = null;
+	_worker = new RPCWorker(WORKER);
 
 	/** @param {ConfigStore} config */
 	constructor(config) {
@@ -19,7 +17,8 @@ export class Store {
 	async load() {
 		let config = await this._configValues;
 		let res = await this._httpRequest("GET", null, config);
-		return this._invoke("decrypt", await res.arrayBuffer(), config.secret);
+		let buf = await res.arrayBuffer();
+		return this._worker.invoke(["decrypt", buf, config.secret], [buf]);
 	}
 
 	/**
@@ -28,7 +27,7 @@ export class Store {
 	 */
 	async save(txt) {
 		let config = await this._configValues;
-		let data = await this._invoke("encrypt", txt, config.secret);
+		let data = await this._worker.invoke(["encrypt", txt, config.secret]);
 		await this._httpRequest("PUT", data, config);
 	}
 
@@ -74,50 +73,6 @@ export class Store {
 		return res;
 	}
 
-	/**
-	 * @overload
-	 * @param {"encrypt"} cmd
-	 * @param {string} payload
-	 * @param {string} secret
-	 * @returns {Promise<Uint8Array>}
-	 */
-	/**
-	 * @overload
-	 * @param {"decrypt"} cmd
-	 * @param {ArrayBuffer} payload
-	 * @param {string} secret
-	 * @returns {Promise<string>}
-	 */
-	/**
-	 * @param {"encrypt" | "decrypt"} cmd
-	 * @param {string | ArrayBuffer} payload
-	 * @param {string} secret
-	 * @returns {Promise<Uint8Array | string>}
-	 */
-	_invoke(cmd, payload, secret) {
-		let worker = this._worker;
-		let { promise, resolve, reject } = Promise.withResolvers();
-		let id = CRYPTO.randomUUID();
-		worker.addEventListener(id, (ev) => {
-			resolve(/** @type {any} */ (ev).detail);
-			clearTimeout(timer);
-		}, { once: true });
-
-		let msg = [cmd, id, secret, payload];
-		if (cmd === "decrypt") {
-			worker.postMessage(msg, [payload]);
-		} else {
-			worker.postMessage(msg);
-		}
-
-		let timer = setTimeout(() => {
-			reject(new Error("timeout"));
-			worker.terminate();
-			this.__worker = null;
-		}, this.timeout);
-		return promise;
-	}
-
 	/** @returns {Promise<ConfigValues>} */
 	get _configValues() {
 		let res = /** @type {ConfigValues} */ ({});
@@ -132,16 +87,59 @@ export class Store {
 		return Promise.all(ops)
 			.then(() => res);
 	}
+}
 
+class RPCWorker {
+	timeout = 1000;
+
+	/** @param {URL} url */
+	constructor(url) {
+		this.url = url;
+	}
+
+	/**
+	 * @param {any[]} message
+	 * @param {Transferable[]} [transfer]
+	 * @returns {Promise<any>}
+	 */
+	invoke(message, transfer) {
+		let worker = this._worker;
+		let { promise, resolve, reject } = Promise.withResolvers();
+		// request-response correlation (cf. `onMessage` conversion)
+		let id = CRYPTO.randomUUID();
+		worker.addEventListener(id, (ev) => {
+			resolve(/** @type {CustomEvent} */ (ev).detail);
+			clearTimeout(timer);
+		}, { once: true });
+
+		worker.postMessage([id, ...message], /** @type {Transfer} */ (transfer));
+
+		let timer = setTimeout(() => { // NB: races against event listener above
+			reject(new Error("timeout"));
+			this.terminate();
+		}, this.timeout);
+		return promise;
+	}
+
+	terminate() {
+		this._worker.terminate();
+		delete /** @type {any} */ (this)._worker; // resets memoization
+	}
+
+	/** @returns {Worker} */
 	get _worker() {
-		let worker = this.__worker;
-		if (!worker) {
-			worker = this.__worker = new Worker(WORKER, {
-				type: "module",
-				name: "ddrpz-crpyto",
-			});
-			worker.addEventListener("message", onMessage);
-		}
+		let { url } = this;
+		let worker = this._worker = new Worker(url, {
+			type: "module",
+			name: url.href,
+		});
+		worker.addEventListener("message", onMessage);
+
+		// memoization via instance property, taking precedence over prototype
+		Object.defineProperty(this, "_worker", {
+			value: worker,
+			configurable: true, // enables reset
+		});
 		return worker;
 	}
 }
@@ -158,4 +156,5 @@ function onMessage(ev) {
 /**
  * @import { ConfigStore } from "./config_store.js"
  * @typedef {{ url: string, token: string, secret: string }} ConfigValues
+ * @typedef {WindowPostMessageOptions} Transfer -- XXX: workaround
  */

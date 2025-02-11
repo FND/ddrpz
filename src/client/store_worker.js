@@ -4,11 +4,11 @@ self.addEventListener("message", onMessage);
 
 /** @param {MessageEvent} message */
 async function onMessage(message) {
-	let [cmd, id, secret, payload] = message.data;
+	let [id, cmd, payload, secret] = message.data;
 	switch (cmd) {
 		case "encrypt": {
 			let { buffer } = await encrypt(payload, secret);
-			self.postMessage([id, buffer], /** @type {any} */ ([buffer]));
+			self.postMessage([id, buffer], /** @type {Transfer} */ ([buffer]));
 			break;
 		}
 		case "decrypt": {
@@ -21,3 +21,5 @@ async function onMessage(message) {
 			break;
 	}
 }
+
+/** @typedef {WindowPostMessageOptions} Transfer -- XXX: workaround */
