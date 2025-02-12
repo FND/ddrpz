@@ -1,10 +1,6 @@
 import { decrypt, encrypt } from "./crypto.js";
-import { describe, it } from "$deno/testing/bdd.ts";
-import {
-	assert,
-	assertRejects,
-	assertStrictEquals as assertSame,
-} from "$deno/assert/mod.ts";
+import { describe, it } from "@std/testing/bdd";
+import { assert, assertRejects, assertStrictEquals as assertSame } from "@std/assert";
 
 let SAMPLE = "lörεm ipsüm dølœr\nßit ämзt";
 let PASSWORD = `s33kr1t ${globalThis.crypto.randomUUID()}`;

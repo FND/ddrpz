@@ -1,11 +1,11 @@
 import requestHandler, { BUCKET_PREFIX, CORS_PREFIX } from "./http.js";
 import { load, save } from "./store.js";
 import { SAMPLE_DATA, SAMPLE_HASH } from "./test_util.js";
-import { afterEach, beforeEach, describe, it } from "$deno/testing/bdd.ts";
+import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
 import {
 	assertEquals as assertDeep,
 	assertStrictEquals as assertSame,
-} from "$deno/assert/mod.ts";
+} from "@std/assert";
 
 let ENV = Deno.env;
 

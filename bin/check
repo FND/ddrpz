@@ -33,7 +33,7 @@ for dir in "${projects[@]}"; do
 		deno run --import-map ./deno.json - > "$tsconfig_actual" <<-EOS
 import defaults from "$tsconfig_base" with { "type": "json" };
 import custom from "$custom" with { "type": "json" };
-import { dirname, join, normalize } from "\$deno/path/mod.ts";
+import { dirname, join, normalize } from "@std/path";
 
 // ensure we adhere to established conventions
 if(normalize("$tsconfig_base") !== join(dirname("$custom"), custom.extends)) {

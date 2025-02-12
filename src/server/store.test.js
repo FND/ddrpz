@@ -1,10 +1,10 @@
 import { load, save } from "./store.js";
 import { SAMPLE_DATA, SAMPLE_HASH } from "./test_util.js";
-import { describe, it } from "$deno/testing/bdd.ts";
+import { describe, it } from "@std/testing/bdd";
 import {
 	assertEquals as assertDeep,
 	assertStrictEquals as assertSame,
-} from "$deno/assert/mod.ts";
+} from "@std/assert";
 
 describe("store", () => {
 	it("automatically hashes data", async () => {
