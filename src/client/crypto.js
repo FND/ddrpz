@@ -1,5 +1,9 @@
 import * as cfg from "../config.js";
 
+let THRESHOLD = 5; // XXX: arbitrary
+/** @type {Map<string, CryptoKey>} */
+let MEMO = new Map();
+
 /* adapted from <https://prepitaph.org/articles/web-crypto-secrets/> */
 let CRYPTO = globalThis.crypto.subtle;
 let ENC = new TextEncoder();
@@ -44,14 +48,28 @@ export async function decrypt({ buffer }, password) {
 	return new TextDecoder().decode(res);
 }
 
-/** @param {string} password */
+/**
+ * @param {string} password
+ * @returns {Promise<CryptoKey>}
+ */
 async function deriveKey(password) {
+	let res = MEMO.get(password);
+	if (res) {
+		return res;
+	}
+
 	let secret = await CRYPTO.importKey("raw", ENC.encode(password), KEY.name, false, [
 		"deriveBits",
 		"deriveKey",
 	]);
-	return CRYPTO.deriveKey(KEY, secret, { name: ALGO, length: 256 }, true, [
+	res = await CRYPTO.deriveKey(KEY, secret, { name: ALGO, length: 256 }, true, [
 		"encrypt",
 		"decrypt",
 	]);
+
+	MEMO.set(password, res);
+	if (MEMO.size > THRESHOLD) {
+		MEMO.delete(MEMO.values().next().value); // FIFO -- XXX: crude; arbitrary
+	}
+	return res;
 }
