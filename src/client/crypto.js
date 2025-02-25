@@ -1,8 +1,8 @@
 import * as cfg from "../config.js";
+import { LRUCache } from "./lru.js";
 
-let THRESHOLD = 5; // XXX: arbitrary
 /** @type {Map<string, CryptoKey>} */
-let MEMO = new Map();
+let CACHE = new LRUCache();
 
 /* adapted from <https://prepitaph.org/articles/web-crypto-secrets/> */
 let CRYPTO = globalThis.crypto.subtle;
@@ -53,7 +53,7 @@ export async function decrypt({ buffer }, password) {
  * @returns {Promise<CryptoKey>}
  */
 async function deriveKey(password) {
-	let res = MEMO.get(password);
+	let res = CACHE.get(password);
 	if (res) {
 		return res;
 	}
@@ -67,9 +67,6 @@ async function deriveKey(password) {
 		"decrypt",
 	]);
 
-	MEMO.set(password, res);
-	if (MEMO.size > THRESHOLD) {
-		MEMO.delete(MEMO.values().next().value); // FIFO -- XXX: crude; arbitrary
-	}
+	CACHE.set(password, res);
 	return res;
 }
