@@ -6,6 +6,7 @@ root_dir=`dirname "$0"`
 root_dir=`realpath "$root_dir/.."`
 
 server_options=(--allow-env)
+client_options=(--allow-read)
 
 # special-casing watch mode
 watch="false"
@@ -25,8 +26,8 @@ done
 cd "$root_dir"
 if [ "$watch" = "true" ]; then
 	# XXX: crude; combining all options to avoid backgrounding subprocesses
-	deno test "${options[@]}" --watch "${server_options[@]}"
+	deno test "${options[@]}" --watch "${server_options[@]}" "${client_options[@]}"
 else
 	deno test "${options[@]}" "${server_options[@]}" ./src/server
-	deno test "${options[@]}" ./src/client
+	deno test "${options[@]}" "${client_options[@]}" ./src/client
 fi

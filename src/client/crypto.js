@@ -34,7 +34,7 @@ export async function encrypt(txt, password) {
 }
 
 /**
- * @param {Uint8Array} data
+ * @param {Uint8Array | { buffer: ArrayBuffer }} data
  * @param {string} password
  * @returns {Promise<string>}
  */
