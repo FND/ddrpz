@@ -1,3 +1,5 @@
+import { wait } from "./test_util.js";
+
 let STORE = new Map();
 
 export let blob = {
@@ -24,12 +26,3 @@ export let blob = {
 		STORE.set(key, value);
 	},
 };
-
-/** @param {number} delay */
-function wait(delay) {
-	return new Promise((resolve) => {
-		setTimeout(() => {
-			resolve(null);
-		}, delay);
-	});
-}

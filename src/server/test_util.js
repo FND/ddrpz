@@ -5,3 +5,12 @@ export let SAMPLE_DATA = new Uint8Array([
 ]);
 // deno-fmt-ignore
 export let SAMPLE_HASH = "26189d3c21eee5c926852f0a5f2ffd64f4be0140eafc01772636ef16d69e6e43";
+
+/** @param {number} delay */
+export function wait(delay) {
+	return new Promise((resolve) => {
+		setTimeout(() => {
+			resolve(null);
+		}, delay);
+	});
+}

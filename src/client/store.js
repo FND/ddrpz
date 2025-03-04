@@ -179,9 +179,8 @@ function onMessage(ev) {
 }
 
 /**
+ * @import { ConfigStore } from "./config_store.js"
  * @import { EncryptCommand, EncryptionResult, DecryptCommand, DecryptionResult } from "./store_worker.js"
  * @typedef {{ url: string, token: string, secret: string }} ConfigValues
- * @typedef {{ get: (field: Field) => Promise<string>}} ConfigStore
- * @typedef {FIELDS[number]} Field
  * @typedef {WindowPostMessageOptions} Transfer -- XXX: workaround
  */

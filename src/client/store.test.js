@@ -220,7 +220,7 @@ class MockStore extends Store {
 }
 
 /**
- * @import { ConfigStore } from "./store.js"
+ * @import { ConfigStore } from "./config_store.js"
  * @typedef {Partial<_Request & { headers: _Headers }>} MockRequest
  * @typedef {Headers | Record<string, string>} _Headers
  * @typedef {Omit<Request, "headers">} _Request
