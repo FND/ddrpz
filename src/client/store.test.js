@@ -27,15 +27,18 @@ describe("store adaptor", () => {
 		});
 
 		let txt = await store.load();
+		let { requests } = store;
 		assertSame(txt, SAMPLE);
-		assertDeep(store.requests, [{
+		assertSame(requests.length, 1);
+		assertDeep({ ...requests[0], signal: null }, {
 			method: "GET",
 			url: CONFIG.url,
 			headers: {
 				Authorization: "Bearer " + CONFIG.token,
 			},
 			body: null,
-		}]);
+			signal: null,
+		});
 		assertSame(store._etag, "v1");
 	});
 
@@ -77,6 +80,7 @@ describe("store adaptor", () => {
 		assertDeep({
 			...req,
 			body: null, // NB: must not compare encrypted bytes
+			signal: null, // NB: must not compare `AbortSignal`
 		}, {
 			method: "PUT",
 			url: CONFIG.url,
@@ -85,6 +89,7 @@ describe("store adaptor", () => {
 				"If-Match": "v1.1",
 			},
 			body: null,
+			signal: null,
 		});
 		assertSame(store._etag, "v2");
 	});
@@ -104,12 +109,13 @@ describe("store adaptor", () => {
 		let { headers } = prev;
 		assertSame(txt, sample);
 		assertSame(requests.length, 5);
-		assertDeep(requests.at(-1), {
+		assertDeep({ ...requests.at(-1), signal: null }, {
 			...prev,
 			headers: {
 				...headers,
 				"If-None-Match": "v2",
 			},
+			signal: null,
 		});
 		assertSame(store._etag, "v3");
 	});
@@ -129,6 +135,7 @@ describe("store adaptor", () => {
 		assertDeep({
 			...req,
 			body: null, // NB: must not compare encrypted bytes
+			signal: null, // NB: must not compare `AbortSignal`
 		}, {
 			method: "PUT",
 			url: CONFIG.url,
@@ -137,6 +144,7 @@ describe("store adaptor", () => {
 				"If-None-Match": "*",
 			},
 			body: null,
+			signal: null,
 		});
 		assertSame(store._etag, "v4");
 	});
@@ -152,7 +160,7 @@ describe("store adaptor", () => {
 		let { requests } = store;
 		assertSame(res, true);
 		assertSame(requests.length, 7);
-		assertDeep(requests.at(-1), {
+		assertDeep({ ...requests.at(-1), signal: null }, {
 			method: "HEAD",
 			url: CONFIG.url,
 			headers: {
@@ -160,6 +168,7 @@ describe("store adaptor", () => {
 				"If-None-Match": "v4",
 			},
 			body: null,
+			signal: null,
 		});
 		assertSame(store._etag, "v4");
 
@@ -172,7 +181,7 @@ describe("store adaptor", () => {
 		res = await store.probe();
 		assertSame(res, false);
 		assertSame(requests.length, 8);
-		assertDeep(requests.at(-1), {
+		assertDeep({ ...requests.at(-1), signal: null }, {
 			method: "HEAD",
 			url: CONFIG.url,
 			headers: {
@@ -180,6 +189,7 @@ describe("store adaptor", () => {
 				"If-None-Match": "v4",
 			},
 			body: null,
+			signal: null,
 		});
 		assertSame(store._etag, "v13");
 	});

@@ -1,3 +1,5 @@
+import { RequestQueue } from "./request_queue.js";
+
 let WORKER = new URL("./store_worker.js", import.meta.url);
 let FIELDS = /** @type {const} */ (["url", "token", "secret"]);
 
@@ -11,13 +13,15 @@ export class Store {
 	/** @param {ConfigStore} config */
 	constructor(config) {
 		this._config = config;
+		/** @type {RequestQueue<RequestParameters>} */
+		this._queue = new RequestQueue(this._httpRequest.bind(this));
 	}
 
 	/** @returns {Promise<string | null>} */
 	async load() {
 		let config = await this._configValues;
 		try { // deno-lint-ignore no-var no-inner-declarations
-			var res = await this._httpRequest("GET", null, config);
+			var res = await this._queue.schedule({ method: "GET", body: null, config });
 		} catch (err) {
 			console.error(err);
 			return null;
@@ -42,24 +46,22 @@ export class Store {
 	async save(txt) {
 		let config = await this._configValues;
 		let data = await this._worker.invoke(["encrypt", txt, config.secret]);
-		await this._httpRequest("PUT", data, config);
+		await this._queue.schedule({ method: "PUT", body: data, config });
 	}
 
 	/** @returns {Promise<boolean>} indicates whether local state is still up to date */
 	async probe() {
 		let config = await this._configValues;
 		let etag = this._etag;
-		await this._httpRequest("HEAD", null, config);
+		await this._queue.schedule({ method: "HEAD", body: null, config });
 		return this._etag === etag;
 	}
 
 	/**
-	 * @param {"HEAD" | "GET" | "PUT"} method
-	 * @param {RequestInit["body"]} body
-	 * @param {ConfigValues} config
+	 * @param {RequestParameters} params
 	 * @returns {Promise<Response>}
 	 */
-	async _httpRequest(method, body, config) {
+	async _httpRequest({ method, body, config }) {
 		/** @type {Record<string, string>} */
 		let headers = {
 			Authorization: "Bearer " + config.token,
@@ -75,7 +77,8 @@ export class Store {
 			headers["If-None-Match"] = etag;
 		}
 
-		let res = await fetch(config.url, { method, headers, body });
+		let signal = AbortSignal.timeout(5000); // XXX: arbitrary
+		let res = await fetch(config.url, { method, headers, body, signal });
 		if (!res.ok && res.status !== 304) {
 			throw new Error(`unexpected HTTP ${res.status} response at ${config.url}`);
 		}
@@ -104,7 +107,7 @@ export class Store {
 }
 
 class RPCWorker {
-	timeout = 1000;
+	timeout = 1000; // XXX: arbitrary
 
 	/** @param {URL} url */
 	constructor(url) {
@@ -182,5 +185,10 @@ function onMessage(ev) {
  * @import { ConfigStore } from "./config_store.js"
  * @import { EncryptCommand, EncryptionResult, DecryptCommand, DecryptionResult } from "./store_worker.js"
  * @typedef {{ url: string, token: string, secret: string }} ConfigValues
+ * @typedef {{
+ *     method: "HEAD" | "GET" | "PUT",
+ *     body: RequestInit["body"],
+ *     config: ConfigValues
+ * }} RequestParameters
  * @typedef {WindowPostMessageOptions} Transfer -- XXX: workaround
  */
